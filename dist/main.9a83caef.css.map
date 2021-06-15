@@ -1,0 +1,1 @@
+{"version":3,"sources":["src/main.css"],"names":[],"mappings":"AAAA;AACA;AACA;AACA;AACA;AACA;AACA;AACA;AACA;AACA","file":"main.9a83caef.css","sourceRoot":"..","sourcesContent":["*{\r\n    box-sizing: border-box;\r\n}\r\nbody{\r\n    margin: 0;\r\n    overflow-x: hidden;\r\n}\r\ncanvas{\r\n    display: block;\r\n}"]}
