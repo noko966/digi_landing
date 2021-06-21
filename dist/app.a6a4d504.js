@@ -46822,6 +46822,8 @@ function _getRequireWildcardCache() { if (typeof WeakMap !== "function") return 
 
 function _interopRequireWildcard(obj) { if (obj && obj.__esModule) { return obj; } if (obj === null || typeof obj !== "object" && typeof obj !== "function") { return { default: obj }; } var cache = _getRequireWildcardCache(); if (cache && cache.has(obj)) { return cache.get(obj); } var newObj = {}; var hasPropertyDescriptor = Object.defineProperty && Object.getOwnPropertyDescriptor; for (var key in obj) { if (Object.prototype.hasOwnProperty.call(obj, key)) { var desc = hasPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : null; if (desc && (desc.get || desc.set)) { Object.defineProperty(newObj, key, desc); } else { newObj[key] = obj[key]; } } } newObj.default = obj; if (cache) { cache.set(obj, newObj); } return newObj; }
 
+var raycaster = new THREE.Raycaster();
+var mouse = new THREE.Vector2();
 var params = {
   exposure: 1,
   bloomStrength: 1,
@@ -46833,6 +46835,7 @@ var cameraPosition = {
   y: 10,
   z: 37
 };
+var hovered = false;
 var renderer = new THREE.WebGLRenderer({
   antialias: true
 });
@@ -46846,9 +46849,17 @@ var camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHei
 var controls = new _OrbitControls.OrbitControls(camera, renderer.domElement); //controls.update() must be called after any manual changes to the camera's transform
 
 camera.position.set(cameraPosition.x, cameraPosition.y, cameraPosition.z);
+camera.lookAt(0, 0, 0);
 controls.update();
 var directionalLight = new THREE.DirectionalLight(0xffffff, 1);
 scene.add(directionalLight);
+
+function onMouseMove(event) {
+  mouse.x = event.clientX / window.innerWidth * 2 - 1;
+  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+}
+
+window.addEventListener('mousemove', onMouseMove, false);
 window.addEventListener('resize', function () {
   // Update camera
   camera.aspect = window.innerWidth / window.innerHeight;
@@ -46881,7 +46892,6 @@ composer.addPass(savePass);
 composer.addPass(outputPass);
 composer.addPass(bloomPass); // composer.addPass(glitchPass);
 
-console.log(composer);
 var center = new THREE.Vector3(0, 0, 0);
 var childOldPositions = [];
 var childNewPositions = [];
@@ -46898,6 +46908,8 @@ loader.load(_sphere.default, function (gltf) {
     var direction = child.position.clone().sub(center);
     childOldPositions.push(child.position.clone());
     childNewPositions.push(direction.clone().multiplyScalar(1.3));
+    child.oldPos = child.position.clone();
+    child.newPos = direction.clone().multiplyScalar(1.3);
   });
   planet.traverse(function (child) {
     if (child.isMesh) {
@@ -46917,17 +46929,50 @@ function map(x, a, b, c, d) {
   return num;
 }
 
+document.addEventListener('mouseenter', function () {
+  hovered = true;
+});
+document.addEventListener('mouseleave', function () {
+  hovered = false;
+});
 var time = 0;
+var INTERSECTED;
 
 function animate() {
-  time += 0.003;
   composer.render();
-  requestAnimationFrame(animate); // required if controls.enableDamping or controls.autoRotate are set to true
+  requestAnimationFrame(animate); // if (planet && hovered) {
+  //     raycaster.setFromCamera(mouse, camera);
+  //     const intersects = raycaster.intersectObjects(planet.children, true);
+  //     if (intersects.length > 0) {
+  //         if (INTERSECTED != intersects[0].object.parent) {
+  //             if(INTERSECTED){
+  //                 INTERSECTED.position.set(INTERSECTED.newPos.x, INTERSECTED.newPos.y, INTERSECTED.newPos.z);
+  //             }
+  //             INTERSECTED = intersects[0].object.parent;
+  //         }
+  //     } else {
+  //         if (INTERSECTED) {
+  //             INTERSECTED.position.set(INTERSECTED.oldPos.x, INTERSECTED.oldPos.y, INTERSECTED.oldPos.z);
+  //         }
+  //         INTERSECTED = null;
+  //     }
+  // }
+  // required if controls.enableDamping or controls.autoRotate are set to true
 
   controls.update(); // renderer.render(scene, camera);
 
-  if (planet) {
-    planet.rotation.y = time * 2;
+  if (planet && !hovered) {
+    if (time > 2 * Math.PI) {
+      time = 0;
+    } else {
+      time += 0.02;
+      planet.rotation.y = time;
+    }
+  }
+
+  if (planet && hovered) {
+    time = Math.PI / 2;
+    planet.rotation.y = THREE.MathUtils.lerp(planet.rotation.y, Math.PI / 2, 0.1);
   }
 }
 
@@ -46938,7 +46983,7 @@ function animateSphere() {
     onComplete: animateSphere
   });
 
-  if (planet) {
+  if (planet && !hovered) {
     tl.to(planet.children[0].children[1].material.emissive, {
       r: color2.r,
       g: color2.g,
@@ -46974,7 +47019,18 @@ function animateSphere() {
         ease: "expo-in"
       }, "-=0.4");
     }
-  }
+  } // if(planet && hovered){
+  //     for (let i = 0; i < planet.children.length; i++) {
+  //         tl.to(planet.children[i].position, {
+  //             x: childOldPositions[i].x,
+  //             y: childOldPositions[i].y,
+  //             z: childOldPositions[i].z,
+  //             duration: 0.2,
+  //             ease: "expo-in"
+  //         }, "-=0.2")
+  //     }
+  // }
+
 }
 },{"three":"node_modules/three/build/three.module.js","three/examples/jsm/controls/OrbitControls.js":"node_modules/three/examples/jsm/controls/OrbitControls.js","three/examples/jsm/loaders/GLTFLoader":"node_modules/three/examples/jsm/loaders/GLTFLoader.js","../models/sphere2.glb":"models/sphere2.glb","../models/space2.jpg":"models/space2.jpg","three/examples/jsm/postprocessing/EffectComposer":"node_modules/three/examples/jsm/postprocessing/EffectComposer.js","three/examples/jsm/postprocessing/RenderPass":"node_modules/three/examples/jsm/postprocessing/RenderPass.js","three/examples/jsm/postprocessing/UnrealBloomPass":"node_modules/three/examples/jsm/postprocessing/UnrealBloomPass.js","three/examples/jsm/postprocessing/GlitchPass":"node_modules/three/examples/jsm/postprocessing/GlitchPass.js","three/examples/jsm/postprocessing/SavePass":"node_modules/three/examples/jsm/postprocessing/SavePass.js","three/examples/jsm/postprocessing/ShaderPass":"node_modules/three/examples/jsm/postprocessing/ShaderPass.js","three/examples/jsm/shaders/CopyShader":"node_modules/three/examples/jsm/shaders/CopyShader.js","three/examples/jsm/shaders/BlendShader":"node_modules/three/examples/jsm/shaders/BlendShader.js","gsap":"node_modules/gsap/index.js"}],"../../../../AppData/Roaming/npm/node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
 var global = arguments[3];
@@ -47004,7 +47060,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "50388" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "57850" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};

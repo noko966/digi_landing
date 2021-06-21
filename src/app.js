@@ -47,6 +47,9 @@ import {
 } from 'three';
 import gsap from 'gsap'
 
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+
 const params = {
     exposure: 1,
     bloomStrength: 1,
@@ -59,6 +62,8 @@ const cameraPosition = {
     y: 10,
     z: 37,
 }
+
+let hovered = false;
 
 
 const renderer = new THREE.WebGLRenderer({
@@ -82,11 +87,19 @@ const controls = new OrbitControls(camera, renderer.domElement);
 
 //controls.update() must be called after any manual changes to the camera's transform
 camera.position.set(cameraPosition.x, cameraPosition.y, cameraPosition.z);
+camera.lookAt(0, 0, 0)
 controls.update();
 
 const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
 scene.add(directionalLight);
 
+function onMouseMove(event) {
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+}
+
+window.addEventListener('mousemove', onMouseMove, false);
 
 window.addEventListener('resize', () => {
     // Update camera
@@ -123,7 +136,7 @@ const blendPass = new ShaderPass(BlendShader, 'tDiffuse1');
 blendPass.uniforms['tDiffuse2'].value = savePass.renderTarget.texture;
 blendPass.uniforms['mixRatio'].value = 0.8;
 
-const outputPass = new ShaderPass( CopyShader );
+const outputPass = new ShaderPass(CopyShader);
 outputPass.renderToScreen = true;
 
 
@@ -137,8 +150,6 @@ composer.addPass(outputPass);
 composer.addPass(bloomPass);
 
 // composer.addPass(glitchPass);
-
-console.log(composer);
 
 let center = new THREE.Vector3(0, 0, 0);
 
@@ -162,19 +173,21 @@ loader.load(sphere, (gltf) => {
             var direction = child.position.clone().sub(center);
             childOldPositions.push(child.position.clone());
             childNewPositions.push(direction.clone().multiplyScalar(1.3));
-        })
+            child.oldPos = child.position.clone();
+            child.newPos = direction.clone().multiplyScalar(1.3);
+        });
 
 
-        planet.traverse( function ( child ) {
-            if ( child.isMesh ) {
+        planet.traverse(function (child) {
+            if (child.isMesh) {
                 child.castShadow = true;
                 child.receiveShadow = true;
             }
-        } );
+        });
         animateSphere();
 
 
-        
+
     },
     function (xhr) {
         console.log((xhr.loaded / xhr.total * 100) + '% loaded');
@@ -189,28 +202,64 @@ function map(x, a, b, c, d) {
     return num
 }
 
+
+
+document.addEventListener('mouseenter', function () {
+    hovered = true
+})
+
+document.addEventListener('mouseleave', function () {
+    hovered = false
+})
+
 let time = 0
 
+let INTERSECTED;
 
 function animate() {
 
-    time += 0.003;
     composer.render();
     requestAnimationFrame(animate);
+
+    // if (planet && hovered) {
+    //     raycaster.setFromCamera(mouse, camera);
+    //     const intersects = raycaster.intersectObjects(planet.children, true);
+    //     if (intersects.length > 0) {
+    //         if (INTERSECTED != intersects[0].object.parent) {
+    //             if(INTERSECTED){
+    //                 INTERSECTED.position.set(INTERSECTED.newPos.x, INTERSECTED.newPos.y, INTERSECTED.newPos.z);
+    //             }
+    //             INTERSECTED = intersects[0].object.parent;
+    //         }
+    //     } else {
+    //         if (INTERSECTED) {
+    //             INTERSECTED.position.set(INTERSECTED.oldPos.x, INTERSECTED.oldPos.y, INTERSECTED.oldPos.z);
+    //         }
+    //         INTERSECTED = null;
+    //     }
+    // }
+
 
     // required if controls.enableDamping or controls.autoRotate are set to true
     controls.update();
 
     // renderer.render(scene, camera);
 
-    if (planet) {
-        planet.rotation.y = time * 2
+    if (planet && !hovered) {
+        if (time > 2 * Math.PI) {
+            time = 0;
+        } else {
+            time += 0.02;
+            planet.rotation.y = time;
+        }
 
     }
-    
+    if (planet && hovered) {
+        time = Math.PI / 2;
+        planet.rotation.y = THREE.MathUtils.lerp(planet.rotation.y, Math.PI / 2, 0.1)
+    }
 
 }
-
 
 animate();
 
@@ -218,7 +267,7 @@ function animateSphere() {
     let tl = gsap.timeline({
         onComplete: animateSphere
     });
-    if (planet) {
+    if (planet && !hovered) {
         tl.to(planet.children[0].children[1].material.emissive, {
             r: color2.r,
             g: color2.g,
@@ -260,4 +309,16 @@ function animateSphere() {
 
 
     }
+    // if(planet && hovered){
+    //     for (let i = 0; i < planet.children.length; i++) {
+    //         tl.to(planet.children[i].position, {
+    //             x: childOldPositions[i].x,
+    //             y: childOldPositions[i].y,
+    //             z: childOldPositions[i].z,
+    //             duration: 0.2,
+    //             ease: "expo-in"
+
+    //         }, "-=0.2")
+    //     }
+    // }
 }
